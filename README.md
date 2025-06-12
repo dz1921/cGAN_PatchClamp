@@ -187,7 +187,6 @@ Key Characteristics
 
 
 **ResNet Refiner**
-
 The ResNetBackgroundRefiner is a post-processing network used to refine GAN-generated images, especially to mitigate checkerboard artifacts, blending errors, and spatial noise in the background regions.
 
 This module is designed to take a concatenation of the generated image and its corresponding mask (or heatmap)—typically a 4-channel tensor—and produce a clean, final RGB image via deep residual refinement.
@@ -236,7 +235,7 @@ Tail	3×3 Conv + Tanh	(3, 256, 256)
 
 
 **SPADE + CBAM**
-In the generators that incorporate SPADE (Spatially-Adaptive Normalisation) and CBAM (Convolutional Block Attention Module), both modules are applied exclusively to the skip connections between encoder and decoder blocks. This design ensures that the semantic conditioning (via SPADE) and attention-driven feature enhancement (via CBAM) are applied to the high-resolution spatial features transferred from the encoder. The main encoding and decoding pathways remain conventional (InstanceNorm + ReLU), allowing the core image structure to be preserved while selectively modulating the contextual and structural information carried through the skip paths.
+
 
   SPADE:
   Norm type: InstanceNorm2d (used as the param-free normalisation base)
@@ -260,3 +259,17 @@ In the generators that incorporate SPADE (Spatially-Adaptive Normalisation) and 
       -mlp_beta: Conv2d(128 -> norm_nc)
   
   Interpolation: Nearest-neighbour resizing of the segmentation map to match the feature map size before applying the MLP.
+
+  **CBAM in U-Net**
+  In this version, CBAM modules are applied directly to the concatenated skip connections in the decoder path of a U-Net     generator. After each upsampling operation, the output tensor is concatenated with the corresponding encoder feature       map, and this merged tensor is passed through a CBAM module to enhance it via attention before proceeding to the next      upsampling step.
+
+Specifics:
+
+CBAM is used in 7 skip connections, placed between upsampled outputs and encoder feature maps.
+
+Each CBAM takes a tensor with 2×F channels (where F is the number of channels from the encoder and decoder branches respectively).
+
+Both channel and spatial attention are applied sequentially in each CBAM block.
+
+CBAM is not applied within convolutional layers, only after concatenation of skip features.
+
