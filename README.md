@@ -9,6 +9,7 @@ cGAN_PatchClamp/
 ├── SCRIPTS/               # Sanity checks and data augmentation
 └── requirements.txt
 
+The main functions are present in TRAIN and TEST where training scripts and evaluation scripts are present so for using this code just run those scripts. In utility there are functions that are also standalone scripts like the 4GON_UI that could be used to prepare data for the training and testing but are not directly part of the main functions.
 
 **U-Net**
 The UNetGenerator is a symmetric encoder-decoder model based on the U-Net architecture. It takes a single-channel input image (e.g. binary mask or heatmap) and generates a 3-channel RGB output. The model uses downsampling via strided convolutions and upsampling via transposed convolutions, with skip connections between encoder and decoder layers to retain spatial detail.
@@ -279,12 +280,61 @@ Specifics:
 | Parameter                     | UNetCBAMGenerator (#1)          | CBAMResNetGenerator (#2)        | UNetPPGenerator (#3)                                    |
 | ----------------------------- | ------------------------------- | ------------------------------- | ------------------------------------------------------- |
 | **Channel reduction ratio**   | `reduction=16`                  | `ratio=16`                      | `reduction=16`                                          |
-| **Channel attention pooling** | `avg + max pooled → shared MLP` | `avg + max pooled → shared MLP` | `avg + max pooled → separate MLP` summed **before** MLP |
+| **Channel attention pooling** | `avg + max pooled -> shared MLP` | `avg + max pooled → shared MLP` | `avg + max pooled -> separate MLP` summed **before** MLP |
 | **Spatial attention kernel**  | `kernel_size=7`                 | `kernel_size=7` (default)       | `kernel_size=7`                                         |
 | **Spatial attention input**   | `cat(avg, max)`                 | `cat(avg, max)`                 | `cat(avg, max)`                                         |
-| **Channel MLP reuse**         | Shared for avg and max          | Shared                          | Not clearly reused; combined before pass                |
+| **Channel MLP reuse**         | Shared for avg and max          | Shared                          |  Combined before pass                |
 | **Activation**                | `ReLU + Sigmoid`                | `ReLU + Sigmoid`                | `ReLU + Sigmoid`                                        |
-| **Attention application**     | `x * CA(x) → x * SA(x)`         | `x * CA(x) → x * SA(x)`         | `x * CA(x) → x * SA(x)`                                 |
+| **Attention application**     | `x * CA(x) -> x * SA(x)`         | `x * CA(x) -> x * SA(x)`         | `x * CA(x) -> x * SA(x)`                                 |
+
+
+**SPADE in U-net**
+  Architecture: Traditional U-Net with downsampling path and upsampling decoder with skip connections.
+  
+  Integration Point: SPADE is only used in the upsampling path (decoder), where each UpBlock replaces standard normalization with SPADE.
+  
+  Mechanism: Down blocks use InstanceNorm. Up blocks perform a transposed convolution, followed by SPADE normalization and ReLU. The input segmentation map is passed to each SPADE module.
+  
+  SPADE Usage: Only in decoder (upsampling path).
+
+**SPADE in ResNet**
+  Architecture: Encoder–ResNet-style bottleneck–decoder.
+  
+  Integration Point: SPADE is only used in the bottleneck via SPADEResnetBlock, a residual block where both normalization layers are replaced by SPADE.
+  
+  Mechanism: Each residual block performs:
+  SPADE → ReLU → Conv → SPADE → ReLU → Conv → residual + input.
+  
+  Downsampling/Upsampling: Uses regular InstanceNorm (not SPADE).
+  
+  SPADE Usage: Only in bottleneck (residual blocks).
+
+**SPADE in U-Net++**
+  Architecture: Deep multi-path decoder with nested skip connections.
+  
+  Integration Point: SPADE is used throughout all convolutional blocks — including the encoder and all decoder blocks — via SPADEConvBlock, which replaces standard instance normalization.
+  
+  Mechanism: Each SPADEConvBlock consists of two convolutions, each followed by SPADE normalization (with shared label_nc), dropout, and ReLU.
+  
+  Input Segmap: Always provided to every block.
+  
+  SPADE Usage: Fully SPADE-based — both encoder and decoder.
+
+
+
+| Parameter / Feature             | **UNet++ SPADE**                     | **SPADE-UNet**                 | **SPADE-ResNet**                |
+| ------------------------------- | ------------------------------------ | ------------------------------ | ------------------------------- |
+| **Param-free norm type**        | `InstanceNorm2d(affine=False)`       | `InstanceNorm2d(affine=False)` | `InstanceNorm2d(affine=False)`  |
+| **Hidden channels (`nhidden`)** | 128                                  | 128                            | 128                             |
+| **Shared MLP structure**        | Conv2d(1 → 128) + ReLU               | Conv2d(1 → 128) + ReLU         | Conv2d(1 → 128) + ReLU          |
+| **Gamma branch**                | Conv2d(128 → norm\_nc)               | Conv2d(128 → norm\_nc)         | Conv2d(128 → norm\_nc)          |
+| **Beta branch**                 | Conv2d(128 → norm\_nc)               | Conv2d(128 → norm\_nc)         | Conv2d(128 → norm\_nc)          |
+| **Modulation equation**         | `(x̂ * (1 + γ) + β)`                 | Same                           | Same                            |
+| **Segmap resizing**             | `F.interpolate(..., mode='nearest')` | Same                           | Same                            |
+| **Used in layers**              | All conv blocks (encoder & decoder)  | Decoder (upsampling only)      | Bottleneck residual blocks only |
+
+
+
 
   
 
