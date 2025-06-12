@@ -234,42 +234,57 @@ Tail	3×3 Conv + Tanh	(3, 256, 256)
 
 
 
-**SPADE + CBAM**
 
-
-  SPADE:
-  Norm type: InstanceNorm2d (used as the param-free normalisation base)
-
-  Segmentation channel count (label_nc):
-  
-      -1 for binary masks (segmentation input)
-      
-      -Or 2 if combined with heatmaps (e.g. when mask and heatmap are concatenated)
-      
-  Hidden dimension for MLP:
-  
-      -nhidden = 128
-  
-  MLP structure:
-  
-      -mlp_shared: Conv2d(label_nc -> 128) + ReLU
-  
-      -mlp_gamma: Conv2d(128 -> norm_nc)
-  
-      -mlp_beta: Conv2d(128 -> norm_nc)
-  
-  Interpolation: Nearest-neighbour resizing of the segmentation map to match the feature map size before applying the MLP.
 
   **CBAM in U-Net**
   In this version, CBAM modules are applied directly to the concatenated skip connections in the decoder path of a U-Net     generator. After each upsampling operation, the output tensor is concatenated with the corresponding encoder feature       map, and this merged tensor is passed through a CBAM module to enhance it via attention before proceeding to the next      upsampling step.
 
 Specifics:
 
-CBAM is used in 7 skip connections, placed between upsampled outputs and encoder feature maps.
+  -CBAM is used in 7 skip connections, placed between upsampled outputs and encoder feature maps.
 
-Each CBAM takes a tensor with 2×F channels (where F is the number of channels from the encoder and decoder branches respectively).
+  -Each CBAM takes a tensor with 2×F channels (where F is the number of channels from the encoder and decoder branches respectively).
 
-Both channel and spatial attention are applied sequentially in each CBAM block.
+  -Both channel and spatial attention are applied sequentially in each CBAM block.
 
-CBAM is not applied within convolutional layers, only after concatenation of skip features.
+  -CBAM is not applied within convolutional layers, only after concatenation of skip features.
+
+  **CBAM in ResNet**
+  In this version, CBAM is embedded inside each ResNet block in the bottleneck of the generator. Specifically, it is applied after the residual path’s convolutions, just before the residual addition.
+
+Specifics:
+
+  -CBAM is used inside every ResnetCBAMBlock in the ResNet-style bottleneck (typically 9 blocks).
+  
+  -The ResNet blocks follow a standard residual pattern: conv → norm → ReLU → conv → norm → CBAM → residual addition.
+  
+  -Channel and spatial attention refine the residual before it is added back to the input (pre-activation residual).
+  
+  -CBAM receives tensors with fixed channel width equal to the feature map width of the block (typically ngf × 2^n_downsampling).
+
+  **CBAM in U-Net++**
+  Implementation summary:
+  This version integrates CBAM inside every ConvBlock, meaning attention is applied after each local double-convolution unit across both the encoder and decoder paths. It is thus densely embedded throughout the network, including the core U-Net++ skip pathways.
+  
+  Specifics:
+  
+    -CBAM is applied to every node in the U-Net++ grid (i.e. convXY units).
+    
+    -It follows two convolutional layers (with InstanceNorm, ReLU, and dropout) and is applied before the output is forwarded or concatenated.
+    
+    -CBAM acts as a post-processing refinement for each feature block, making it more pervasive than in the previous two designs.
+    
+    -Since UNet++ contains dense skip connections between decoder branches, this results in a large number of CBAM modules enhancing feature fusion granularity.
+
+| Parameter                     | UNetCBAMGenerator (#1)          | CBAMResNetGenerator (#2)        | UNetPPGenerator (#3)                                    |
+| ----------------------------- | ------------------------------- | ------------------------------- | ------------------------------------------------------- |
+| **Channel reduction ratio**   | `reduction=16`                  | `ratio=16`                      | `reduction=16`                                          |
+| **Channel attention pooling** | `avg + max pooled → shared MLP` | `avg + max pooled → shared MLP` | `avg + max pooled → separate MLP` summed **before** MLP |
+| **Spatial attention kernel**  | `kernel_size=7`                 | `kernel_size=7` (default)       | `kernel_size=7`                                         |
+| **Spatial attention input**   | `cat(avg, max)`                 | `cat(avg, max)`                 | `cat(avg, max)`                                         |
+| **Channel MLP reuse**         | Shared for avg and max          | Shared                          | Not clearly reused; combined before pass                |
+| **Activation**                | `ReLU + Sigmoid`                | `ReLU + Sigmoid`                | `ReLU + Sigmoid`                                        |
+| **Attention application**     | `x * CA(x) → x * SA(x)`         | `x * CA(x) → x * SA(x)`         | `x * CA(x) → x * SA(x)`                                 |
+
+  
 
