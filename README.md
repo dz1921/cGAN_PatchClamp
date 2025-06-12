@@ -193,38 +193,38 @@ The ResNetBackgroundRefiner is a post-processing network used to refine GAN-gene
 This module is designed to take a concatenation of the generated image and its corresponding mask (or heatmap)—typically a 4-channel tensor—and produce a clean, final RGB image via deep residual refinement.
 
 Architecture Overview
-Input: 4×256×256 (e.g. 3-channel GAN output + 1-channel mask or heatmap)
-
-Output: 3×256×256 (refined RGB image)
+  Input: 4×256×256 (e.g. 3-channel GAN output + 1-channel mask or heatmap)
+  
+  Output: 3×256×256 (refined RGB image)
 
 The architecture consists of:
 
-Initial Feature Extraction (head)
+  Initial Feature Extraction (head):
 
-A 7×7 convolution followed by Instance Normalisation and ReLU.
+    -A 7×7 convolution followed by Instance Normalisation and ReLU.
+    
+    -Expands the input into a deeper feature representation.
 
-Expands the input into a deeper feature representation.
+  Residual Refinement Bottleneck:
 
-Residual Refinement Bottleneck
+    -A configurable number (default=6) of ResBlock modules.
+  
+    -Each ResBlock applies two 3×3 convolutions with InstanceNorm and ReLU.
 
-A configurable number (default=6) of ResBlock modules.
+    -Optional Coordinate Attention is applied to capture long-range spatial dependencies along both height and width axes       without losing positional granularity.
 
-Each ResBlock applies two 3×3 convolutions with InstanceNorm and ReLU.
+  Output Projection (tail)
 
-Optional Coordinate Attention is applied to capture long-range spatial dependencies along both height and width axes without losing positional granularity.
-
-Output Projection (tail)
-
-A final 3×3 convolution maps the feature map to 3 channels.
-
-Followed by Tanh() to normalize pixel values into the range [-1, 1].
+    -A final 3×3 convolution maps the feature map to 3 channels.
+    
+    -Followed by Tanh() to normalize pixel values into the range [-1, 1].
 
 Key Features
-Component	Description
-CoordAttention	Captures height-wise and width-wise global context via separate pooling, then modulates features with spatially aware attention maps.
-Residual Blocks	Maintain spatial integrity while enabling deep nonlinear refinement.
-No Downsampling/Upsampling	Operates at the original image resolution to preserve fine details and avoid aliasing.
-Lightweight	Shallow architecture designed to be fast and effective as a post-GAN cleanup step.
+  Component	  Description
+  CoordAttention	              Captures height-wise and width-wise global context via separate pooling, then modulates                                    features with spatially aware attention maps.
+  Residual Blocks	              Maintain spatial integrity while enabling deep nonlinear refinement.
+  No Downsampling/Upsampling	  Operates at the original image resolution to preserve fine details and avoid aliasing.
+  Lightweight	                  Shallow architecture designed to be fast and effective as a post-GAN cleanup step.
 
 Summary Table
 Stage	Layers	Output Shape
