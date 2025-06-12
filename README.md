@@ -233,4 +233,3 @@ Head	7×7 Conv + InstanceNorm + ReLU	(64, 256, 256)
 Bottleneck	6× ResBlocks (w/ CoordAttention)	(64, 256, 256)
 Tail	3×3 Conv + Tanh	(3, 256, 256)
 
-Let me know if you want a version without attention or for another variant (e.g. UNet-based refiner).
