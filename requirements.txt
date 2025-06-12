@@ -1,0 +1,15 @@
+torch>=2.0
+torchvision
+numpy
+pandas
+scikit-learn
+scipy
+opencv-python
+matplotlib
+tqdm
+PyYAML
+lpips
+torchmetrics
+scikit-image
+TensorBoard
+torch-fidelity
