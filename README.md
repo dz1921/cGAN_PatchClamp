@@ -1,4 +1,4 @@
-cGAN_PatchClamp/
+cGAN_S2I/
 ├── CONFIG/                # YAML configs (hyperparameters)
 ├── UTILS/                 # Helpers: dataset loading, config parsing, metrics
 ├── GENERATOR/             # Generator model definitions
