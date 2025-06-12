@@ -71,7 +71,7 @@ Initial Convolution Block
 
   -Followed by instance normalisation and ReLU activation.
 
-  -Output: (ngf, 256, 256) → e.g. (64, 256, 256)
+  -Output: (ngf, 256, 256) -> e.g. (64, 256, 256)
 
 Downsampling
 
@@ -248,7 +248,7 @@ Tail	3×3 Conv + Tanh	(3, 256, 256)
       
   Hidden dimension for MLP:
   
-      -nhidden = 128 (fixed in your SPADE class)
+      -nhidden = 128
   
   MLP structure:
   
