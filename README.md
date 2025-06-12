@@ -233,3 +233,30 @@ Head	7×7 Conv + InstanceNorm + ReLU	(64, 256, 256)
 Bottleneck	6× ResBlocks (w/ CoordAttention)	(64, 256, 256)
 Tail	3×3 Conv + Tanh	(3, 256, 256)
 
+
+
+**SPADE + CBAM**
+In the generators that incorporate SPADE (Spatially-Adaptive Normalisation) and CBAM (Convolutional Block Attention Module), both modules are applied exclusively to the skip connections between encoder and decoder blocks. This design ensures that the semantic conditioning (via SPADE) and attention-driven feature enhancement (via CBAM) are applied to the high-resolution spatial features transferred from the encoder. The main encoding and decoding pathways remain conventional (InstanceNorm + ReLU), allowing the core image structure to be preserved while selectively modulating the contextual and structural information carried through the skip paths.
+
+  SPADE:
+  Norm type: InstanceNorm2d (used as the param-free normalisation base)
+
+  Segmentation channel count (label_nc):
+  
+      -1 for binary masks (segmentation input)
+      
+      -Or 2 if combined with heatmaps (e.g. when mask and heatmap are concatenated)
+      
+  Hidden dimension for MLP:
+  
+      -nhidden = 128 (fixed in your SPADE class)
+  
+  MLP structure:
+  
+      -mlp_shared: Conv2d(label_nc -> 128) + ReLU
+  
+      -mlp_gamma: Conv2d(128 -> norm_nc)
+  
+      -mlp_beta: Conv2d(128 -> norm_nc)
+  
+  Interpolation: Nearest-neighbour resizing of the segmentation map to match the feature map size before applying the MLP.
